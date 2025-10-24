@@ -1,680 +1,248 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>RH5 Trainer booking system - Mobile (Full Form)</title>
-
-  <!-- Tailwind CSS from CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Chart.js from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    :root { --touch-min: 44px; }
-    body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-    .touch-btn { min-height: var(--touch-min); padding-top: 10px; padding-bottom: 10px; }
-    .day-cell { min-height: 72px; border-radius: 0.5rem; }
-    .dot { width: 12px; height: 12px; border-radius: 9999px; display:inline-block; margin-left:6px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .modal-full { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
-    .modal-card { width: 100%; border-top-left-radius: 16px; border-top-right-radius: 16px; max-height: 92vh; overflow:auto; }
-    .sticky-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 10px; background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,1)); backdrop-filter: blur(6px); }
-    canvas { width: 100% !important; height: auto !important; }
-    .weekend { background-color: #f8fafc; }
-    .cal-nav-btn { min-width: 44px; min-height: 44px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; }
-    .required::after { content:" *"; color:#dc2626; font-weight:600; }
-    /* small helper for long texts */
-    .truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RH5 Trainer Booking System</title>
+<style>
+  body { font-family: sans-serif; background:#f9fafb; margin:0; padding:0; }
+  .hidden { display:none; }
+  .container { max-width:1200px; margin:auto; padding:1rem; }
+  .card { background:white; padding:1rem; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:1rem; }
+  button,input,select { font-size:1rem; padding:0.5rem; border-radius:4px; border:1px solid #ccc; }
+  .status-dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-left:4px; }
+  .chat-box { max-height:150px; overflow-y:auto; border:1px solid #ccc; padding:0.5rem; border-radius:4px; background:#fff; }
+  #calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+  #calendar div { padding:8px; border-radius:4px; cursor:pointer; background:#f0f0f0; }
+  #calendar div.weekend { background:#e0e0e0; }
+  #booking-modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
+  #booking-modal .modal-content { background:white; padding:1rem; border-radius:8px; width:100%; max-width:400px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body>
 
-  <div class="max-w-3xl mx-auto p-4 pb-32">
-    <!-- Header -->
-    <header class="flex items-center justify-between mb-4">
-      <div>
-        <h1 class="text-lg font-semibold">RH5 Trainer booking system</h1>
-        <p class="text-xs text-slate-500">Public Dashboard — Mobile (Form + Validation)</p>
-      </div>
+<!-- Login -->
+<div id="login-page" class="container">
+  <div class="card" style="max-width:400px;margin:auto;">
+    <h1 style="text-align:center;">RH5 Trainer Booking System</h1>
+    <input id="username" placeholder="Username" class="w-full mb-2"><br>
+    <input id="password" placeholder="Password" type="password" class="w-full mb-2"><br>
+    <select id="role" class="w-full mb-2">
+      <option value="staff">Staff</option>
+      <option value="lecturer">Lecturer</option>
+      <option value="admin">Admin</option>
+    </select><br>
+    <button id="login-btn" class="w-full">Login</button>
+  </div>
+</div>
 
-      <div class="flex items-center gap-2">
-        <div id="userArea" class="text-sm text-right"></div>
-        <button id="logoutBtn" class="hidden bg-gray-200 text-slate-700 rounded-md px-3 touch-btn">Logout</button>
-      </div>
-    </header>
-
-    <!-- Calendar card -->
-    <section class="bg-white rounded-lg shadow p-3 mb-4">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          <button id="prevMonth" class="cal-nav-btn bg-slate-100 cal-btn touch-btn" aria-label="Previous month">‹</button>
-          <div id="monthLabel" class="font-semibold text-sm"></div>
-          <button id="nextMonth" class="cal-nav-btn bg-slate-100 cal-btn touch-btn" aria-label="Next month">›</button>
-        </div>
-        <div class="text-xs text-slate-500">แตะวันที่เพื่อดูรายละเอียด</div>
-      </div>
-
-      <div class="text-xs text-slate-600 mb-2 grid grid-cols-7 gap-1 text-center">
-        <div class="font-semibold">อา</div>
-        <div class="font-semibold">จ</div>
-        <div class="font-semibold">อ</div>
-        <div class="font-semibold">พ</div>
-        <div class="font-semibold">พฤ</div>
-        <div class="font-semibold">ศ</div>
-        <div class="font-semibold">ส</div>
-      </div>
-
-      <div id="calendar" class="calendar-grid"></div>
-
-      <div class="mt-3 text-xs text-slate-600 flex flex-wrap gap-3">
-        <div class="inline-flex items-center"><span class="dot bg-red-500"></span>&nbsp;🔴 ไม่ว่าง</div>
-        <div class="inline-flex items-center"><span class="dot bg-yellow-400"></span>&nbsp;🟡 ถูกบล็อค</div>
-        <div class="inline-flex items-center"><span class="dot bg-slate-400"></span>&nbsp;เสาร์-อาทิตย์</div>
-      </div>
-    </section>
-
-    <!-- Summary cards -->
-    <section class="space-y-3">
-      <div class="bg-white rounded-lg shadow p-3">
-        <h3 class="font-medium mb-2">Total Bookings (by zone)</h3>
-        <canvas id="pieZones" height="180"></canvas>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-3">
-        <h3 class="font-medium mb-2">Bookings by Month</h3>
-        <canvas id="barMonth" height="160"></canvas>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-3">
-        <h3 class="font-medium mb-2">Bookings by Year</h3>
-        <canvas id="barYear" height="160"></canvas>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-3">
-        <h3 class="font-medium mb-3">Status Summary</h3>
-        <div class="grid grid-cols-3 gap-2 text-center">
-          <div class="p-3 rounded border">
-            <div class="text-sm text-slate-500">Pending</div>
-            <div id="pendingCount" class="font-semibold text-slate-700 mt-1">0</div>
-          </div>
-          <div class="p-3 rounded border">
-            <div class="text-sm text-slate-500">Accepted</div>
-            <div id="acceptedCount" class="font-semibold text-green-600 mt-1">0</div>
-          </div>
-          <div class="p-3 rounded border">
-            <div class="text-sm text-slate-500">Rejected</div>
-            <div id="rejectedCount" class="font-semibold text-red-600 mt-1">0</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <footer class="mt-6 text-xs text-slate-500 pb-8">
-      ระบบตัวอย่าง: ข้อมูลถูกเก็บใน localStorage — ไม่แนะนำใช้แบบ production โดยไม่มี backend/validation เพิ่มเติม
-    </footer>
+<!-- Dashboard -->
+<div id="dashboard-page" class="container hidden">
+  <div class="card">
+    <h2 id="banner-text-display">RH5 Trainer Booking System</h2>
   </div>
 
-  <!-- Sticky CTA -->
-  <div class="sticky-cta">
-    <div class="max-w-3xl mx-auto px-4">
-      <div class="flex gap-3">
-        <button id="ctaBooking" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md touch-btn">จองคิววิทยากร</button>
-        <button id="btnViewFilters" class="w-12 bg-slate-100 rounded-md touch-btn" aria-label="Filters">⚙️</button>
-      </div>
+  <!-- Summary -->
+  <div id="summary-cards"></div>
+
+  <!-- Calendar -->
+  <div class="card">
+    <h3>Calendar</h3>
+    <div id="calendar"></div>
+  </div>
+
+  <button id="book-cta" class="mb-2">จองคิววิทยากร</button>
+
+  <!-- User Management (Admin only) -->
+  <div id="user-management" class="card hidden">
+    <h3>User Management</h3>
+    <button id="add-user-btn">เพิ่มผู้ใช้</button>
+    <div id="user-list"></div>
+  </div>
+
+  <!-- Banner Management (Admin only) -->
+  <div id="banner-management" class="card hidden">
+    <h3>Banner Management</h3>
+    <input id="banner-text" placeholder="ข้อความ banner" class="w-full mb-2"><br>
+    <button id="save-banner-btn">บันทึก banner</button>
+  </div>
+
+  <!-- Live Chat -->
+  <div class="card">
+    <h3>Live Chat</h3>
+    <div class="chat-box" id="chat-messages"></div>
+    <input id="chat-input" placeholder="พิมพ์ข้อความ..." class="w-full mb-2">
+    <button id="chat-send">ส่ง</button>
+  </div>
+
+  <!-- Invitation Card (Staff only) -->
+  <div id="invitation-card" class="card hidden">
+    <h3>Invitation PDF</h3>
+    <select id="booking-select" class="w-full mb-2"></select><br>
+    <button id="generate-invitation">ดาวน์โหลด PDF</button>
+  </div>
+
+</div>
+
+<!-- Booking Modal -->
+<div id="booking-modal" class="hidden">
+  <div class="modal-content">
+    <h3>สร้างการจอง</h3>
+    <input type="date" id="booking-date" class="w-full mb-2">
+    <input type="time" id="booking-start" class="w-full mb-2">
+    <input type="time" id="booking-end" class="w-full mb-2">
+    <input type="number" id="booking-attendees" placeholder="จำนวนผู้เข้าอบรม" class="w-full mb-2">
+    <select id="booking-type" class="w-full mb-2">
+      <option value="f2f">F2F</option>
+      <option value="online">Online</option>
+    </select>
+    <div id="location-label" class="hidden">
+      <input id="booking-location" placeholder="สถานที่" class="w-full mb-2">
     </div>
+    <button id="booking-submit" class="mb-2">สร้างการจอง</button>
+    <button id="booking-cancel">ยกเลิก</button>
   </div>
-
-  <!-- Login Modal -->
-  <div id="loginModal" class="modal-full hidden" aria-hidden="true">
-    <div class="modal-card bg-white rounded-t-lg shadow p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-semibold">เข้าสู่ระบบ</h3>
-        <button id="loginClose" class="text-slate-500 touch-btn">ปิด</button>
-      </div>
-      <div class="space-y-3">
-        <label class="text-xs text-slate-600">Username</label>
-        <input id="loginUser" class="w-full border rounded px-3 py-2" />
-        <label class="text-xs text-slate-600">Password</label>
-        <input id="loginPass" type="password" class="w-full border rounded px-3 py-2" />
-        <div class="flex justify-end gap-2 mt-2">
-          <button id="loginCancel" class="px-4 py-2 touch-btn rounded border">ยกเลิก</button>
-          <button id="loginSubmit" class="bg-indigo-600 text-white px-4 py-2 touch-btn rounded">เข้าสู่ระบบ</button>
-        </div>
-        <div class="text-xs text-slate-500 pt-2">
-          ตัวอย่างผู้ใช้: admin/admin123, staff1/staff123, lect1/lect123
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Booking Modal (Full Form) -->
-  <div id="bookingModal" class="modal-full hidden" aria-hidden="true">
-    <div class="modal-card bg-white rounded-t-lg shadow p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-semibold">สร้างการจอง</h3>
-        <button id="bookingClose" class="text-slate-500 touch-btn">ปิด</button>
-      </div>
-
-      <form id="bookingForm" class="space-y-3">
-        <!-- Date & Time: start / end (datetime-local) -->
-        <div>
-          <label class="text-xs text-slate-600 required">เริ่ม (Start)</label>
-          <input id="startDateTime" type="datetime-local" class="w-full border rounded px-3 py-2" required />
-        </div>
-        <div>
-          <label class="text-xs text-slate-600 required">สิ้นสุด (End)</label>
-          <input id="endDateTime" type="datetime-local" class="w-full border rounded px-3 py-2" required />
-        </div>
-
-        <!-- Zone -->
-        <div>
-          <label class="text-xs text-slate-600 required">Zone</label>
-          <select id="zoneSelect" class="w-full border rounded px-3 py-2" required>
-            <option value="">-- เลือก Zone --</option>
-            <option value="ราชบุรี">ราชบุรี</option>
-            <option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option>
-            <option value="ภูเก็ต">ภูเก็ต</option>
-            <option value="หาดใหญ่">หาดใหญ่</option>
-            <option value="สมุทรสาคร">สมุทรสาคร</option>
-          </select>
-        </div>
-
-        <!-- Participant Group -->
-        <div>
-          <label class="text-xs text-slate-600">Participant Group</label>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <label class="inline-flex items-center gap-2"><input type="checkbox" name="group" value="BM" class="h-4 w-4" /> <span class="text-sm">BM</span></label>
-            <label class="inline-flex items-center gap-2"><input type="checkbox" name="group" value="CISA" class="h-4 w-4" /> <span class="text-sm">CISA</span></label>
-            <label class="inline-flex items-center gap-2"><input type="checkbox" name="group" value="CFSA" class="h-4 w-4" /> <span class="text-sm">CFSA</span></label>
-            <label class="inline-flex items-center gap-2"><input type="checkbox" name="group" value="Wealth" class="h-4 w-4" /> <span class="text-sm">Wealth</span></label>
-            <label class="inline-flex items-center gap-2"><input type="checkbox" name="group" value="Other" class="h-4 w-4" /> <span class="text-sm">Other</span></label>
-          </div>
-        </div>
-
-        <!-- Training type -->
-        <div>
-          <label class="text-xs text-slate-600">Training Type</label>
-          <div class="flex gap-3 mt-2">
-            <label class="inline-flex items-center gap-2"><input type="radio" name="trainingType" value="F2F" checked class="h-4 w-4" /> <span class="text-sm">F2F</span></label>
-            <label class="inline-flex items-center gap-2"><input type="radio" name="trainingType" value="Online" class="h-4 w-4" /> <span class="text-sm">Online</span></label>
-          </div>
-        </div>
-
-        <!-- Topic -->
-        <div>
-          <label class="text-xs text-slate-600 required">Topic</label>
-          <input id="topicInput" type="text" class="w-full border rounded px-3 py-2" placeholder="หัวข้อ เช่น: วางแผนการลงทุน" required />
-        </div>
-
-        <!-- Purpose / Details -->
-        <div>
-          <label class="text-xs text-slate-600 required">Purpose / Details</label>
-          <textarea id="purposeInput" rows="4" class="w-full border rounded px-3 py-2" placeholder="วัตถุประสงค์ / รายละเอียด (required)" required></textarea>
-        </div>
-
-        <!-- Speaker -->
-        <div>
-          <label class="text-xs text-slate-600">Speaker</label>
-          <select id="speakerSelect" class="w-full border rounded px-3 py-2">
-            <option value="">None</option>
-            <option value="อ.อาร์ม">อ.อาร์ม</option>
-            <option value="อ.ฟ้า">อ.ฟ้า</option>
-          </select>
-        </div>
-
-        <!-- Contact Info -->
-        <div>
-          <label class="text-xs text-slate-600 required">ชื่อผู้ประสานงาน</label>
-          <input id="contactName" type="text" class="w-full border rounded px-3 py-2" required />
-        </div>
-        <div>
-          <label class="text-xs text-slate-600">ตำแหน่ง</label>
-          <input id="contactPosition" type="text" class="w-full border rounded px-3 py-2" />
-        </div>
-        <div>
-          <label class="text-xs text-slate-600 required">เบอร์โทร</label>
-          <input id="contactPhone" type="tel" class="w-full border rounded px-3 py-2" placeholder="0812345678" required />
-        </div>
-
-        <!-- Status (admin only can change) -->
-        <div id="statusRow">
-          <label class="text-xs text-slate-600">สถานะ (admin เท่านั้น)</label>
-          <select id="statusSelect" class="w-full border rounded px-3 py-2">
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-            <option value="blocked">Blocked</option>
-          </select>
-        </div>
-
-        <div class="flex justify-end gap-2 mt-2">
-          <button type="button" id="bookingCancel" class="px-4 py-2 touch-btn rounded border">ยกเลิก</button>
-          <button type="submit" class="bg-indigo-600 text-white px-4 py-2 touch-btn rounded">บันทึกการจอง</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Filter Modal (simple) -->
-  <div id="filterModal" class="modal-full hidden" aria-hidden="true">
-    <div class="modal-card bg-white rounded-t-lg shadow p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-semibold">ฟิลเตอร์</h3>
-        <button id="filterClose" class="text-slate-500 touch-btn">ปิด</button>
-      </div>
-      <div class="space-y-3">
-        <label class="text-xs text-slate-600">Zone</label>
-        <select id="filterZone" class="w-full border rounded px-3 py-2">
-          <option value="">ทั้งหมด</option>
-          <option>ราชบุรี</option><option>สุราษฎร์ธานี</option><option>ภูเก็ต</option><option>หาดใหญ่</option><option>สมุทรสาคร</option>
-        </select>
-        <label class="text-xs text-slate-600">Status</label>
-        <select id="filterStatus" class="w-full border rounded px-3 py-2">
-          <option value="">ทั้งหมด</option>
-          <option value="pending">Pending</option>
-          <option value="accepted">Accepted</option>
-          <option value="rejected">Rejected</option>
-          <option value="blocked">Blocked</option>
-        </select>
-        <div class="flex justify-end">
-          <button id="applyFilter" class="bg-indigo-600 text-white px-4 py-2 touch-btn rounded">ใช้</button>
-        </div>
-      </div>
-    </div>
-  </div>
+</div>
 
 <script>
-/************************************************************************
- * RH5 Mobile Full Booking Form (single-file)
- * - localStorage keys: rh5_users, rh5_bookings, rh5_session
- * - bookings schema:
- *   { id, start: ISO, end: ISO, zone, groups:[], trainingType, topic, purpose,
- *     speaker, contact: {name, position, phone}, status, createdBy }
- ************************************************************************/
+  // ========= Session =========
+  function saveSession(user){ localStorage.setItem("session",JSON.stringify(user)); }
+  function getSession(){ return JSON.parse(localStorage.getItem("session")); }
+  function logout(){ localStorage.removeItem("session"); document.getElementById("dashboard-page").classList.add("hidden"); document.getElementById("login-page").classList.remove("hidden"); }
 
-// Keys & config
-const SESSION_KEY = 'rh5_session';
-const USERS_KEY = 'rh5_users';
-const BOOKINGS_KEY = 'rh5_bookings';
-const AUTOLOGOUT_MINUTES = 30;
-const ZONES = ['ราชบุรี','สุราษฎร์ธานี','ภูเก็ต','หาดใหญ่','สมุทรสาคร'];
-
-// --- Seed sample users/bookings if none ---
-function seedInitialData() {
-  if (!localStorage.getItem(USERS_KEY)) {
-    const users = [
-      { username: 'admin', password: 'admin123', role: 'admin', displayName: 'Administrator' },
-      { username: 'staff1', password: 'staff123', role: 'staff', displayName: 'Staff - Jintana' },
-      { username: 'lect1', password: 'lect123', role: 'lecturer', displayName: 'Lecturer - Somsak' }
-    ];
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  // ========= Login =========
+  document.getElementById("login-btn").onclick=function(){
+    const username=document.getElementById("username").value;
+    const password=document.getElementById("password").value;
+    const role=document.getElementById("role").value;
+    if(username&&password){ saveSession({username,role}); loadDashboard(); }
+    else alert("กรุณากรอกข้อมูลให้ครบ");
   }
 
-  if (!localStorage.getItem(BOOKINGS_KEY)) {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const bookings = [
-      // bookings use start/end ISO strings (local)
-      { id:'b1', start:`${yyyy}-${mm}-05T10:00`, end:`${yyyy}-${mm}-11:00`, zone:'ราชบุรี', groups:['BM'], trainingType:'F2F', topic:'Training A', purpose:'อบรม A', speaker:'อ.อาร์ม', contact:{name:'สายฝน', position:'AM', phone:'0812345001'}, status:'accepted', createdBy:'staff1' },
-      { id:'b2', start:`${yyyy}-${mm}-12T13:00`, end:`${yyyy}-${mm}-12T15:00`, zone:'สุราษฎร์ธานี', groups:['Wealth'], trainingType:'Online', topic:'Workshop B', purpose:'Workshop B', speaker:'อ.ฟ้า', contact:{name:'สมชาย', position:'BM', phone:'0812345002'}, status:'pending', createdBy:'lect1' },
-      { id:'blk1', start:`${yyyy}-${mm}-25T09:00`, end:`${yyyy}-${mm}-25T18:00`, zone:null, groups:[], trainingType:'F2F', topic:'Maintenance', purpose:'System maintenance', speaker:'', contact:{name:'Admin', position:'', phone:''}, status:'blocked', createdBy:'admin' }
-    ];
-    localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));
+  // ========= Dashboard =========
+  function loadDashboard(){
+    const session=getSession(); if(!session) return;
+    document.getElementById("login-page").classList.add("hidden");
+    document.getElementById("dashboard-page").classList.remove("hidden");
+    document.getElementById("user-management").classList.toggle("hidden",session.role!=="admin");
+    document.getElementById("banner-management").classList.toggle("hidden",session.role!=="admin");
+    document.getElementById("invitation-card").classList.toggle("hidden",session.role!=="staff");
+    renderSummary(); renderCalendar(); renderUsers(); renderBanner(); renderChat(); renderBookingSelect();
   }
-}
 
-// --- Session management ---
-function saveSession(sessionObj) {
-  sessionObj.lastActivity = Date.now();
-  sessionObj.createdAt = sessionObj.createdAt || Date.now();
-  localStorage.setItem(SESSION_KEY, JSON.stringify(sessionObj));
-  updateUIForSession();
-}
-function clearSession() { localStorage.removeItem(SESSION_KEY); updateUIForSession(); }
-function getSession() { const s = localStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : null; }
-
-function login(username,password) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const found = users.find(u=> u.username===username && u.password===password);
-  if (!found) return { ok:false, message:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
-  const session = { username: found.username, role: found.role, displayName: found.displayName, createdAt: Date.now(), lastActivity: Date.now() };
-  saveSession(session);
-  return { ok:true, session };
-}
-function logout() { clearSession(); showToast('ออกจากระบบ'); renderPublicView(); }
-
-// auto-logout & activity touch
-function touchSessionActivity() {
-  const s = getSession(); if (!s) return;
-  s.lastActivity = Date.now(); localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-}
-setInterval(()=> {
-  const s = getSession(); if(!s) return;
-  const elapsed = Date.now() - (s.lastActivity || s.createdAt || Date.now());
-  if (elapsed > AUTOLOGOUT_MINUTES * 60 * 1000) { logout(); showToast('ออกจากระบบเนื่องจากไม่ใช้งานเกิน 30 นาที'); }
-}, 30*1000);
-['click','touchstart','keydown'].forEach(evt => window.addEventListener(evt, ()=> touchSessionActivity(), { passive:true }));
-
-// --- Bookings helpers ---
-function getBookings() { return JSON.parse(localStorage.getItem(BOOKINGS_KEY) || '[]'); }
-function saveBookings(arr) { localStorage.setItem(BOOKINGS_KEY, JSON.stringify(arr)); }
-function addBooking(b) { const arr = getBookings(); b.id = 'b' + Math.random().toString(36).slice(2,9); arr.push(b); saveBookings(arr); refreshAll(); return b; }
-
-// Check overlap helper
-function isOverlap(aStart, aEnd, bStart, bEnd) {
-  return (aStart < bEnd) && (bStart < aEnd); // true if overlap
-}
-
-// Check availability: no overlap in same zone (if zone null => global)
-function checkAvailability(startISO, endISO, zone) {
-  const bookings = getBookings();
-  const s = new Date(startISO);
-  const e = new Date(endISO);
-  for (const b of bookings) {
-    // if blocked (status 'blocked') with zone null -> prevent all zones; or if same zone
-    const bStart = new Date(b.start);
-    const bEnd = new Date(b.end);
-    const bZone = b.zone; // could be null
-    if (b.status === 'blocked' && isOverlap(s,e,bStart,bEnd)) return { ok:false, reason: 'มีการบล็อควันที่/ช่วงเวลา (blocked)' };
-    if (zone && bZone === zone && isOverlap(s,e,bStart,bEnd)) return { ok:false, reason: 'มีการจองซ้อนใน zone นี้' };
-    // also if b.zone === null (global block) covered by first check
+  // ========= Summary =========
+  function renderSummary(){
+    const cards=document.getElementById("summary-cards");
+    cards.innerHTML="";
+    const card1=document.createElement("div"); card1.className="card";
+    card1.innerHTML="<h4>จำนวนงานที่รีเควส</h4>เดือนนี้:34<br>ปีนี้:120";
+    const card2=document.createElement("div"); card2.className="card";
+    card2.innerHTML="<h4>จำนวนผู้เข้าอบรม</h4>เดือนนี้:56<br>ปีนี้:210";
+    cards.appendChild(card1); cards.appendChild(card2);
   }
-  return { ok:true };
-}
 
-// --- Calendar render ---
-let calendarDate = new Date();
-function toYMD(date) {
-  const y = date.getFullYear(); const m = String(date.getMonth()+1).padStart(2,'0'); const d = String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`;
-}
-
-function renderCalendar(filter={}) {
-  const cal = document.getElementById('calendar'); cal.innerHTML='';
-  const year = calendarDate.getFullYear(); const month = calendarDate.getMonth();
-  const first = new Date(year,month,1); const last = new Date(year,month+1,0);
-  const startDay = first.getDay(); const daysInMonth = last.getDate();
-  for (let i=0;i<startDay;i++) {
-    const blank = document.createElement('div'); blank.className='bg-transparent p-1'; cal.appendChild(blank);
-  }
-  const bookings = getBookings();
-  // map bookings by date (any overlapping time -> mark day)
-  const bookingsByDate = {};
-  for (const b of bookings) {
-    const s = new Date(b.start);
-    const e = new Date(b.end);
-    // mark all dates covered by the booking
-    let cur = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-    const endDate = new Date(e.getFullYear(), e.getMonth(), e.getDate());
-    while (cur <= endDate) {
-      const key = toYMD(cur);
-      bookingsByDate[key] = bookingsByDate[key] || [];
-      bookingsByDate[key].push(b);
-      cur.setDate(cur.getDate()+1);
+  // ========= Calendar =========
+  function renderCalendar(){
+    const cal=document.getElementById("calendar"); cal.innerHTML="";
+    const now=new Date(); const year=now.getFullYear(); const month=now.getMonth();
+    const days=new Date(year,month+1,0).getDate();
+    const bookings=JSON.parse(localStorage.getItem("bookings")||"[]");
+    for(let i=1;i<=days;i++){
+      const div=document.createElement("div"); div.innerText=i;
+      const d=new Date(year,month,i).getDay(); if(d==0||d==6) div.classList.add("weekend");
+      const b=bookings.find(x=>x.date===`${year}-${month+1}-${i}`);
+      if(b) div.innerHTML+=` <span class="status-dot" style="background:${b.status==='approved'?'red':'yellow'}"></span>`;
+      cal.appendChild(div);
     }
   }
-  for (let d=1; d<=daysInMonth; d++) {
-    const dateObj = new Date(year, month, d);
-    const ymd = toYMD(dateObj);
-    const isWeekend = dateObj.getDay()===0 || dateObj.getDay()===6;
-    const cell = document.createElement('div'); cell.className=`day-cell border p-2 flex flex-col justify-between ${isWeekend ? 'weekend' : 'bg-white'}`;
-    const top = document.createElement('div'); top.className='flex items-center justify-between';
-    const dayNum = document.createElement('div'); dayNum.className='font-medium text-sm'; dayNum.textContent=d; top.appendChild(dayNum);
-    const entries = bookingsByDate[ymd] || [];
-    const markers = document.createElement('div');
-    const hasBlocked = entries.some(e=> e.status==='blocked');
-    const hasBooking = entries.some(e=> ['accepted','pending','rejected'].includes(e.status));
-    if (hasBlocked) { const dot = document.createElement('span'); dot.className='dot bg-yellow-400'; markers.appendChild(dot); }
-    else if (hasBooking) { const dot = document.createElement('span'); dot.className='dot bg-red-500'; markers.appendChild(dot); }
-    top.appendChild(markers); cell.appendChild(top);
 
-    const mid = document.createElement('div'); mid.className='text-xs text-slate-600 mt-2 flex-1';
-    if (entries.length===0) mid.textContent='ว่าง';
-    else {
-      entries.slice(0,2).forEach(e => {
-        const row = document.createElement('div'); row.className='flex items-center gap-2';
-        row.innerHTML = `<span class="${e.status==='accepted'?'text-green-600':(e.status==='rejected'?'text-red-600':'text-slate-700')} text-xs font-semibold truncate-2">${e.topic}</span><span class="text-xs text-slate-400">(${e.zone||'—'})</span>`;
-        mid.appendChild(row);
-      });
-      if (entries.length>2) { const more = document.createElement('div'); more.className='text-xs text-slate-400'; more.textContent=`+${entries.length-2} รายการ`; mid.appendChild(more); }
-    }
-    cell.appendChild(mid);
-    cell.addEventListener('click', ()=> showDateDetails(ymd));
-    cal.appendChild(cell);
+  // ========= Booking =========
+  const bookBtn=document.getElementById("book-cta");
+  const modal=document.getElementById("booking-modal");
+  const cancelBtn=document.getElementById("booking-cancel");
+  const locationLabel=document.getElementById("location-label");
+  bookBtn.onclick=()=>modal.classList.remove("hidden");
+  cancelBtn.onclick=()=>modal.classList.add("hidden");
+  document.getElementById("booking-type").onchange=function(){
+    locationLabel.classList.toggle("hidden",this.value!=="f2f");
   }
-  document.getElementById('monthLabel').textContent = calendarDate.toLocaleString('th-TH', { month:'long', year:'numeric' });
-}
-
-function showDateDetails(ymd) {
-  const entries = getBookings().filter(b => toYMD(new Date(b.start)) <= ymd && ymd <= toYMD(new Date(b.end)));
-  if (entries.length===0) { alert(`${ymd}\n\nวันว่าง — ไม่มีการจอง`); return; }
-  let msg = `${ymd}\n\n`;
-  entries.forEach(b => {
-    msg += `• ${b.topic} (${b.zone||'—'}) ${b.start.replace('T',' ')}→${b.end.replace('T',' ')} — ${b.status} (by ${b.createdBy})\n`;
-  });
-  alert(msg);
-}
-
-// calendar nav
-document.getElementById('prevMonth').addEventListener('click', ()=> { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth()-1, 1); renderCalendar(); refreshCharts(); });
-document.getElementById('nextMonth').addEventListener('click', ()=> { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth()+1, 1); renderCalendar(); refreshCharts(); });
-
-// --- Charts ---
-let pieChart=null, barMonthChart=null, barYearChart=null;
-function refreshCharts(filter={}) {
-  const bookings = getBookings();
-  // Pie by zone
-  const zoneCounts = {};
-  ZONES.forEach(z=> zoneCounts[z]=0);
-  bookings.filter(b=> b.zone).forEach(b => { if (zoneCounts[b.zone] !== undefined) zoneCounts[b.zone]++; else zoneCounts[b.zone]=(zoneCounts[b.zone]||0)+1; });
-  const pieLabels = Object.keys(zoneCounts), pieData = pieLabels.map(l=>zoneCounts[l]);
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart(document.getElementById('pieZones').getContext('2d'), { type:'pie', data:{ labels:pieLabels, datasets:[{ data:pieData }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } } });
-
-  // Bookings by month (days)
-  const curY = calendarDate.getFullYear(), curM = calendarDate.getMonth();
-  const daysInMonth = new Date(curY, curM+1, 0).getDate();
-  const dailyCounts = new Array(daysInMonth).fill(0);
-  bookings.forEach(b => {
-    const s = new Date(b.start);
-    if (s.getFullYear()===curY && s.getMonth()===curM) dailyCounts[s.getDate()-1] += 1;
-  });
-  const labels = dailyCounts.map((_,i)=> String(i+1));
-  if (barMonthChart) barMonthChart.destroy();
-  barMonthChart = new Chart(document.getElementById('barMonth').getContext('2d'), { type:'bar', data:{ labels, datasets:[{ label:'Bookings', data:dailyCounts }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ display:false } } } });
-
-  // Bookings by year (months)
-  const year = (new Date()).getFullYear();
-  const monthlyCounts = new Array(12).fill(0);
-  bookings.forEach(b => { const s = new Date(b.start); if (s.getFullYear()===year) monthlyCounts[s.getMonth()]++; });
-  const monthLabels = ['ม.ค','ก.พ','มี.ค','เม.ย','พ.ค','มิ.ย','ก.ค','ส.ค','ก.ย','ต.ค','พ.ย','ธ.ค'];
-  if (barYearChart) barYearChart.destroy();
-  barYearChart = new Chart(document.getElementById('barYear').getContext('2d'), { type:'bar', data:{ labels:monthLabels, datasets:[{label:'Bookings', data:monthlyCounts}] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ display:false } } } });
-
-  // status counts
-  document.getElementById('pendingCount').textContent = bookings.filter(b=>b.status==='pending').length;
-  document.getElementById('acceptedCount').textContent = bookings.filter(b=>b.status==='accepted').length;
-  document.getElementById('rejectedCount').textContent = bookings.filter(b=>b.status==='rejected').length;
-}
-
-// --- UI / Auth ---
-function updateUIForSession() {
-  const s = getSession();
-  const userArea = document.getElementById('userArea');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const cta = document.getElementById('ctaBooking');
-
-  if (s) {
-    userArea.innerHTML = `<div class="text-sm">สวัสดี, ${s.displayName}</div><div class="text-xs text-slate-500">${s.role}</div>`;
-    logoutBtn.classList.remove('hidden');
-    // CTA opens booking form
-    cta.textContent = 'สร้างการจอง';
-    cta.onclick = openBookingForm;
-  } else {
-    userArea.innerHTML = `<div class="text-sm text-slate-600">ผู้เยี่ยมชม</div>`;
-    logoutBtn.classList.add('hidden');
-    cta.textContent = 'จองคิววิทยากร';
-    cta.onclick = showLoginModal;
+  document.getElementById("booking-submit").onclick=function(){
+    const date=document.getElementById("booking-date").value;
+    const start=document.getElementById("booking-start").value;
+    const end=document.getElementById("booking-end").value;
+    const attendees=document.getElementById("booking-attendees").value;
+    const type=document.getElementById("booking-type").value;
+    const location=document.getElementById("booking-location").value;
+    const bookings=JSON.parse(localStorage.getItem("bookings")||"[]");
+    const conflict=bookings.some(b=>b.date===date && ((start>=b.start && start<b.end)||(end>b.start && end<=b.end)));
+    if(conflict){ alert("วันและเวลานี้ไม่ว่าง"); return; }
+    bookings.push({date,start,end,attendees,type,location,status:"approved"});
+    localStorage.setItem("bookings",JSON.stringify(bookings)); modal.classList.add("hidden"); renderCalendar(); renderBookingSelect();
   }
-}
 
-function showLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); document.getElementById('loginUser').focus(); }
-function hideLoginModal() { document.getElementById('loginModal').classList.add('hidden'); document.getElementById('loginUser').value=''; document.getElementById('loginPass').value=''; }
+  // ========= User Management =========
+  function renderUsers(){
+    const list=document.getElementById("user-list"); list.innerHTML="";
+    const users=JSON.parse(localStorage.getItem("users")||"[]");
+    users.forEach((u,i)=>{
+      const div=document.createElement("div"); div.innerHTML=`${u.username} (${u.role}) <button onclick="editUser(${i})">แก้ไข</button>`;
+      list.appendChild(div);
+    });
+  }
+  document.getElementById("add-user-btn").onclick=function(){
+    const username=prompt("Username:"); const role=prompt("Role:");
+    if(!username||!role) return;
+    const users=JSON.parse(localStorage.getItem("users")||"[]");
+    users.push({username,role}); localStorage.setItem("users",JSON.stringify(users)); renderUsers();
+  }
+  window.editUser=function(i){
+    const users=JSON.parse(localStorage.getItem("users")||"[]");
+    users[i].username=prompt("แก้ไข username:",users[i].username);
+    users[i].role=prompt("แก้ไข role:",users[i].role);
+    localStorage.setItem("users",JSON.stringify(users)); renderUsers();
+  }
 
-document.getElementById('loginClose').addEventListener('click', hideLoginModal);
-document.getElementById('loginCancel').addEventListener('click', hideLoginModal);
+  // ========= Banner =========
+  function renderBanner(){
+    const text=localStorage.getItem("banner")||"RH5 Trainer Booking System";
+    document.getElementById("banner-text-display").innerText=text;
+    document.getElementById("banner-text").value=text;
+  }
+  document.getElementById("save-banner-btn").onclick=function(){
+    const text=document.getElementById("banner-text").value;
+    localStorage.setItem("banner",text); renderBanner();
+  }
 
-document.getElementById('loginSubmit').addEventListener('click', ()=> {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value;
-  if (!u || !p) { showToast('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'); return; }
-  const r = login(u,p);
-  if (!r.ok) showToast(r.message);
-  else { hideLoginModal(); showToast('ล็อกอินสำเร็จ'); updateUIForSession(); }
-});
+  // ========= Chat =========
+  function renderChat(){
+    const chat=JSON.parse(localStorage.getItem("chat")||"[]");
+    document.getElementById("chat-messages").innerHTML=chat.map(c=>`${c.user}: ${c.text}`).join("<br>");
+  }
+  document.getElementById("chat-send").onclick=function(){
+    const input=document.getElementById("chat-input"); const text=input.value; if(!text) return;
+    const session=getSession(); const chat=JSON.parse(localStorage.getItem("chat")||"[]");
+    chat.push({user:session.username,text}); localStorage.setItem("chat",JSON.stringify(chat)); input.value=""; renderChat();
+  }
 
-document.getElementById('logoutBtn').addEventListener('click', ()=> { logout(); });
+  // ========= Invitation PDF =========
+  function renderBookingSelect(){
+    const select=document.getElementById("booking-select"); select.innerHTML="";
+    const bookings=JSON.parse(localStorage.getItem("bookings")||"[]");
+    bookings.forEach((b,i)=>{
+      const opt=document.createElement("option"); opt.value=i; opt.text=`${b.date} ${b.start}-${b.end}`;
+      select.appendChild(opt);
+    });
+  }
+  document.getElementById("generate-invitation").onclick=function(){
+    const idx=document.getElementById("booking-select").value; if(idx==="") return;
+    const bookings=JSON.parse(localStorage.getItem("bookings")||"[]"); const b=bookings[idx];
+    const doc=new jsPDF(); doc.text(`Invitation\nDate: ${b.date}\nTime: ${b.start}-${b.end}\nAttendees: ${b.attendees}\nType: ${b.type}\nLocation: ${b.location}`,10,10); doc.save("invitation.pdf");
+  }
 
-// Filters
-document.getElementById('btnViewFilters').addEventListener('click', ()=> document.getElementById('filterModal').classList.remove('hidden'));
-document.getElementById('filterClose').addEventListener('click', ()=> document.getElementById('filterModal').classList.add('hidden'));
-document.getElementById('applyFilter').addEventListener('click', ()=> { document.getElementById('filterModal').classList.add('hidden'); showToast('Applied filter'); });
-
-// --- Booking form behavior ---
-function openBookingForm() {
-  const sess = getSession();
-  if (!sess) { showLoginModal(); return; }
-  // prefill start = today 09:00, end = today 10:00
-  const now = new Date();
-  const yyyy = now.getFullYear(); const mm = String(now.getMonth()+1).padStart(2,'0'); const dd = String(now.getDate()).padStart(2,'0');
-  const startDefault = `${yyyy}-${mm}-${dd}T09:00`;
-  const endDefault = `${yyyy}-${mm}-${dd}T10:00`;
-  document.getElementById('startDateTime').value = startDefault;
-  document.getElementById('endDateTime').value = endDefault;
-  // zone default empty
-  document.getElementById('zoneSelect').value = '';
-  // groups uncheck
-  document.querySelectorAll('input[name="group"]').forEach(i=> i.checked=false);
-  // training type default F2F
-  document.querySelectorAll('input[name="trainingType"]').forEach(i=> i.checked = (i.value==='F2F'));
-  document.getElementById('topicInput').value = '';
-  document.getElementById('purposeInput').value = '';
-  document.getElementById('speakerSelect').value = '';
-  document.getElementById('contactName').value = '';
-  document.getElementById('contactPosition').value = '';
-  document.getElementById('contactPhone').value = '';
-  // status: admin can change, others forced pending and status select disabled
-  const sessRole = sess.role;
-  const statusSel = document.getElementById('statusSelect');
-  if (sessRole === 'admin') { statusSel.removeAttribute('disabled'); statusSel.value='pending'; }
-  else { statusSel.value='pending'; statusSel.setAttribute('disabled','disabled'); }
-  document.getElementById('bookingModal').classList.remove('hidden');
-}
-
-function closeBookingForm() {
-  document.getElementById('bookingModal').classList.add('hidden');
-  document.getElementById('statusSelect').removeAttribute('disabled');
-}
-
-document.getElementById('bookingClose').addEventListener('click', closeBookingForm);
-document.getElementById('bookingCancel').addEventListener('click', closeBookingForm);
-
-document.getElementById('bookingForm').addEventListener('submit', (e)=> {
-  e.preventDefault();
-  const sess = getSession();
-  if (!sess) { showLoginModal(); closeBookingForm(); return; }
-
-  // Gather fields
-  const start = document.getElementById('startDateTime').value;
-  const end = document.getElementById('endDateTime').value;
-  const zone = document.getElementById('zoneSelect').value || null;
-  const groups = Array.from(document.querySelectorAll('input[name="group"]:checked')).map(i=> i.value);
-  const trainingType = document.querySelector('input[name="trainingType"]:checked')?.value || 'F2F';
-  const topic = document.getElementById('topicInput').value.trim();
-  const purpose = document.getElementById('purposeInput').value.trim();
-  const speaker = document.getElementById('speakerSelect').value || '';
-  const contactName = document.getElementById('contactName').value.trim();
-  const contactPosition = document.getElementById('contactPosition').value.trim();
-  const contactPhone = document.getElementById('contactPhone').value.trim();
-  let status = document.getElementById('statusSelect').value || 'pending';
-
-  // basic validation
-  if (!start || !end) { showToast('กรุณาระบุวันที่และเวลา'); return; }
-  const s = new Date(start); const en = new Date(end);
-  if (s.toString() === 'Invalid Date' || en.toString() === 'Invalid Date') { showToast('รูปแบบวันที่ไม่ถูกต้อง'); return; }
-  if (s >= en) { showToast('เวลาเริ่มต้นต้องน้อยกว่าเวลาสิ้นสุด'); return; }
-  // working hours 09:00 - 18:00: require both start and end time within range
-  const startHour = s.getHours() + s.getMinutes()/60;
-  const endHour = en.getHours() + en.getMinutes()/60;
-  if (startHour < 9 || endHour > 18) { showToast('เวลาต้องอยู่ในช่วง 09:00 - 18:00'); return; }
-
-  if (!topic) { showToast('กรุณาใส่หัวข้อ'); return; }
-  if (!purpose) { showToast('กรุณาใส่รายละเอียดวัตถุประสงค์'); return; }
-  if (!contactName || !contactPhone) { showToast('กรุณากรอกข้อมูลผู้ประสานงาน (ชื่อและเบอร์โทร)'); return; }
-  // contact phone basic format: digits
-  if (!/^\d{7,15}$/.test(contactPhone)) { showToast('รูปแบบเบอร์โทรไม่ถูกต้อง (ตัวเลขเท่านั้น 7-15 ตัว)'); return; }
-
-  // check availability (no overlap in same zone, blocked days)
-  const availability = checkAvailability(start, end, zone);
-  if (!availability.ok) { showToast(availability.reason); return; }
-
-  // if user not admin, force pending
-  if (sess.role !== 'admin') status = 'pending';
-
-  const booking = {
-    start, end, zone, groups, trainingType, topic, purpose, speaker,
-    contact: { name: contactName, position: contactPosition, phone: contactPhone },
-    status, createdBy: sess.username
-  };
-
-  addBooking(booking);
-  showToast('บันทึกการจองเรียบร้อย (status: ' + status + ')');
-  closeBookingForm();
-});
-
-// --- Toast ---
-function showToast(msg, ms=3000) {
-  const t = document.createElement('div'); t.className='fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded shadow'; t.textContent=msg;
-  document.body.appendChild(t); setTimeout(()=> t.remove(), ms);
-}
-
-// --- Init ---
-(function init() {
-  seedInitialData();
-  calendarDate = new Date();
-  checkSessionOnLoad();
-  if (!getSession()) renderPublicView();
-  document.querySelectorAll('button, input, select, textarea').forEach(el => el.style.touchAction='manipulation');
-})();
-
-function checkSessionOnLoad() {
-  const s = getSession();
-  if (!s) { renderPublicView(); return; }
-  const elapsed = Date.now() - (s.lastActivity || s.createdAt || Date.now());
-  if (elapsed > AUTOLOGOUT_MINUTES * 60 * 1000) { clearSession(); renderPublicView(); showToast('Session หมดเวลา'); }
-  else { s.lastActivity = Date.now(); localStorage.setItem(SESSION_KEY, JSON.stringify(s)); routeToRoleDashboard(s.role); }
-}
-
-function renderPublicView() {
-  document.getElementById('ctaBooking').onclick = showLoginModal;
-  document.getElementById('logoutBtn').classList.add('hidden');
-  updateUIForSession();
-  refreshAll();
-}
-
-function routeToRoleDashboard(role) {
-  showToast('เข้าสู่ระบบสำหรับ ' + role, 1200);
-  updateUIForSession();
-  refreshAll();
-}
-
-function refreshAll() { renderCalendar(); refreshCharts(); updateUIForSession(); }
-
-// expose for debugging
-window.RH5 = { getBookings, addBooking, getSession, logout };
-
+  // ========= Init =========
+  if(getSession()) loadDashboard();
 </script>
+
 </body>
 </html>
